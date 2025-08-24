@@ -1,52 +1,40 @@
+import os
 import json
 import numpy as np
-from pathlib import Path
-from sentence_transformers import SentenceTransformer
 import faiss
+from pathlib import Path
 
-# Paths
-CHUNKS_FILE = Path("data/processed/chunks.jsonl")
-EMB_FILE = Path("index/embeddings.npy")
-ID_MAP_FILE = Path("index/id_map.jsonl")
-FAISS_FILE = Path("index/notes.faiss")
+# --- Config ---
+PROCESSED_CHUNKS = "../data/processed/chunks.jsonl"   # processed text chunks
+EMBEDDINGS_FILE = "../index/embeddings.npy"           # precomputed embeddings
+INDEX_DIR = "index"
 
-# Model
-MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
-model = SentenceTransformer(MODEL_NAME)
+# --- Main ---
+def main():
+    Path(INDEX_DIR).mkdir(exist_ok=True)
 
-embeddings = []
-id_map = []
+    # Load embeddings
+    embeddings = np.load(EMBEDDINGS_FILE)
+    dim = embeddings.shape[1]
 
-print("Embedding chunks...")
-with CHUNKS_FILE.open("r", encoding="utf-8") as fin, ID_MAP_FILE.open("w", encoding="utf-8") as fout:
-    for line in fin:
-        rec = json.loads(line)
-        text = rec["text"]
-        embedding = model.encode(text).astype("float32")
-        embeddings.append(embedding)
-        # Save minimal info for reference
-        id_map.append({
-            "id": rec["id"],
-            "source": rec["source"],
-            "page": rec["page"],
-            "snippet": text[:150]  # first 150 chars for quick reference
-        })
-        fout.write(json.dumps(id_map[-1], ensure_ascii=False) + "\n")
+    # Build FAISS index
+    index = faiss.IndexFlatL2(dim)
+    index.add(embeddings)
+    faiss.write_index(index, os.path.join(INDEX_DIR, "notes.faiss"))
 
-embeddings = np.stack(embeddings)
-EMB_FILE.parent.mkdir(parents=True, exist_ok=True)
-np.save(EMB_FILE, embeddings)
+    print(f"✅ FAISS index built with {embeddings.shape[0]} vectors, dimension {dim}")
 
-print(f"Embeddings saved → {EMB_FILE}")
-print(f"ID map saved → {ID_MAP_FILE}")
+    # Load chunks metadata
+    with open(PROCESSED_CHUNKS, "r", encoding="utf-8") as f:
+        chunks = [json.loads(line) for line in f]
 
-# Build FAISS index
-print("Building FAISS index...")
-index = faiss.IndexFlatL2(embeddings.shape[1])
-index.add(embeddings)
+    # Write ID map (one line per chunk, ties embedding index to text)
+    with open(os.path.join(INDEX_DIR, "id_map.jsonl"), "w", encoding="utf-8") as f:
+        for i, chunk in enumerate(chunks):
+            entry = {"id": i, "text": chunk["text"], "source": chunk.get("source", "unknown")}
+            f.write(json.dumps(entry) + "\n")
 
-FAISS_FILE.parent.mkdir(parents=True, exist_ok=True)
-faiss.write_index(index, str(FAISS_FILE))
-print(f"FAISS index saved → {FAISS_FILE}")
+    print("✅ ID map saved.")
 
-print("Phase 3 fully done ✅")
+if __name__ == "__main__":
+    main()

@@ -9,10 +9,19 @@ __pycache__/
 env/
 venv/
 ENV/
+
+# C++ FAISS build
 cpp/faiss
 
 # Data
 data/raw/
+data/processed/
+index/
+
+# LM Studio / temporary files
+*.log
+*.tmp
+*.cache
 
 # IDE / OS files
 .vscode/
@@ -20,10 +29,7 @@ data/raw/
 *.swp
 .DS_Store
 
-# Logs
-*.log
-
-# Python cache
+# Python packaging
 *.egg-info/
 dist/
 build/
