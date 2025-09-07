@@ -12,6 +12,8 @@ Document Processing: Ingest PDFs/PPTs and chunk them for processing
 
 **Citation Support**: Shows exactly which parts of your notes were used for answers
 
+<img width="1917" height="1002" alt="Image" src="https://github.com/user-attachments/assets/285e0615-12e1-4cf5-9985-015190fff3f3" />
+
 ## Tech Stack
 **Frontend**: React.js
 
